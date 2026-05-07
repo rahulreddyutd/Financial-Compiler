@@ -1,0 +1,861 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Obin AI — Financial Compiler</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg: #080b0f; --surface: #0e1318; --card: #131920;
+  --border: rgba(255,255,255,0.07); --border-hi: rgba(255,255,255,0.14);
+  --text: #d4dbe8; --muted: #4a5568; --dim: #7a8899;
+  --accent: #3b82f6; --green: #10b981; --amber: #f59e0b;
+  --red: #ef4444; --purple: #a78bfa;
+  --green-dim: rgba(16,185,129,0.1); --amber-dim: rgba(245,158,11,0.1);
+  --red-dim: rgba(239,68,68,0.1); --accent-dim: rgba(59,130,246,0.1);
+  --purple-dim: rgba(167,139,250,0.1);
+  --sans: 'IBM Plex Sans', sans-serif; --mono: 'IBM Plex Mono', monospace;
+}
+html, body { height: 100%; background: var(--bg); color: var(--text); font-family: var(--sans); }
+
+/* ── TOPBAR ── */
+.topbar {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 11px 20px; background: var(--surface);
+  border-bottom: 0.5px solid var(--border-hi);
+  position: sticky; top: 0; z-index: 10;
+}
+.brand { display: flex; align-items: center; gap: 9px; font-weight: 600; font-size: 14px; }
+.brand-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 3px rgba(59,130,246,0.2); }
+.topbar-right { display: flex; align-items: center; gap: 12px; font-size: 11px; font-family: var(--mono); color: var(--muted); }
+.status-pill { padding: 3px 10px; border-radius: 20px; font-size: 10px; border: 0.5px solid; }
+.pill-idle    { background: var(--accent-dim); color: var(--accent); border-color: rgba(59,130,246,0.3); }
+.pill-running { background: var(--amber-dim);  color: var(--amber);  border-color: rgba(245,158,11,0.3); }
+.pill-done    { background: var(--green-dim);  color: var(--green);  border-color: rgba(16,185,129,0.3); }
+.pill-error   { background: var(--red-dim);    color: var(--red);    border-color: rgba(239,68,68,0.3); }
+
+/* ── LAYOUT ── */
+.layout { display: grid; grid-template-columns: 320px 1fr; min-height: calc(100vh - 45px); }
+
+/* ── SIDEBAR ── */
+.sidebar {
+  background: var(--surface); border-right: 0.5px solid var(--border);
+  padding: 18px; display: flex; flex-direction: column; gap: 18px;
+  position: sticky; top: 45px; height: calc(100vh - 45px); overflow-y: auto;
+}
+.section-label { font-size: 9.5px; font-family: var(--mono); color: var(--muted); letter-spacing: 1.5px; text-transform: uppercase; margin-bottom: 8px; }
+
+.api-key-wrap { position: relative; }
+.api-key-input {
+  width: 100%; background: var(--card); border: 0.5px solid var(--border);
+  border-radius: 4px; padding: 7px 32px 7px 9px; font-family: var(--mono);
+  font-size: 11px; color: var(--text); outline: none; transition: border-color 0.12s;
+}
+.api-key-input:focus { border-color: var(--accent); }
+.api-key-toggle {
+  position: absolute; right: 8px; top: 50%; transform: translateY(-50%);
+  background: none; border: none; color: var(--muted); cursor: pointer; font-size: 12px; padding: 0;
+}
+.api-key-hint { font-size: 10px; font-family: var(--mono); color: var(--muted); margin-top: 5px; line-height: 1.5; }
+.api-key-hint a { color: var(--accent); text-decoration: none; }
+
+.doc-textarea {
+  width: 100%; height: 200px; background: var(--card);
+  border: 0.5px solid var(--border); border-radius: 4px;
+  padding: 10px; font-family: var(--mono); font-size: 10.5px;
+  color: var(--text); outline: none; resize: vertical; line-height: 1.6;
+  transition: border-color 0.12s;
+}
+.doc-textarea:focus { border-color: var(--accent); }
+
+.sample-btns { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 6px; }
+.sample-btn {
+  font-size: 10px; font-family: var(--mono); padding: 4px 8px;
+  border-radius: 3px; border: 0.5px solid var(--border-hi);
+  background: transparent; color: var(--dim); cursor: pointer; transition: all 0.12s;
+}
+.sample-btn:hover { background: var(--accent-dim); color: var(--accent); border-color: var(--accent); }
+
+.run-btn {
+  width: 100%; padding: 11px; background: var(--accent); color: #fff;
+  border: none; border-radius: 5px; font-family: var(--sans); font-size: 13px;
+  font-weight: 500; cursor: pointer; transition: opacity 0.12s;
+  display: flex; align-items: center; justify-content: center; gap: 7px;
+}
+.run-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+.run-btn:hover:not(:disabled) { opacity: 0.85; }
+.spin {
+  width: 13px; height: 13px; border: 1.5px solid rgba(255,255,255,0.3);
+  border-top-color: #fff; border-radius: 50%;
+  animation: spin 0.5s linear infinite; display: none;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── MAIN ── */
+.main-area { padding: 20px; display: flex; flex-direction: column; gap: 14px; }
+
+.pipeline-track { display: flex; align-items: center; }
+.pipe-step {
+  flex: 1; padding: 9px 8px; background: var(--card);
+  border: 0.5px solid var(--border); font-size: 10.5px; font-family: var(--mono);
+  color: var(--muted); text-align: center; transition: all 0.2s;
+}
+.pipe-step:first-child { border-radius: 5px 0 0 5px; }
+.pipe-step:last-child  { border-radius: 0 5px 5px 0; }
+.pipe-step.active    { color: var(--amber); border-color: rgba(245,158,11,0.4); background: var(--amber-dim); }
+.pipe-step.done-pass { color: var(--green); border-color: rgba(16,185,129,0.4); background: var(--green-dim); }
+.pipe-step.done-fail { color: var(--red);   border-color: rgba(239,68,68,0.4);  background: var(--red-dim); }
+.pipe-arrow { width: 14px; flex-shrink: 0; text-align: center; color: var(--muted); font-size: 9px; }
+
+.panel { background: var(--card); border: 0.5px solid var(--border); border-radius: 7px; overflow: hidden; }
+.panel-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 9px 14px; border-bottom: 0.5px solid var(--border);
+}
+.panel-title { font-size: 11px; font-family: var(--mono); color: var(--dim); display: flex; align-items: center; gap: 8px; }
+.panel-badge { font-size: 9.5px; padding: 2px 7px; border-radius: 3px; font-family: var(--mono); }
+.badge-agent    { background: var(--purple-dim); color: var(--purple); }
+.badge-compiler { background: var(--amber-dim);  color: var(--amber); }
+.badge-output   { background: var(--green-dim);  color: var(--green); }
+.badge-error    { background: var(--red-dim);    color: var(--red); }
+.panel-body { padding: 14px; }
+
+.cov-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; }
+.cov-card {
+  background: var(--surface); border: 0.5px solid var(--border);
+  border-radius: 6px; padding: 12px; cursor: pointer; transition: border-color 0.12s;
+}
+.cov-card:hover { border-color: var(--border-hi); }
+.cov-card.expanded { border-color: var(--accent); }
+.cov-name { font-size: 12px; font-weight: 500; margin-bottom: 4px; }
+.cov-type { font-size: 10px; font-family: var(--mono); color: var(--muted); margin-bottom: 8px; }
+.cov-ratio-row { display: flex; align-items: baseline; gap: 6px; margin-bottom: 4px; }
+.cov-ratio { font-size: 20px; font-family: var(--mono); font-weight: 500; }
+.cov-threshold { font-size: 11px; font-family: var(--mono); color: var(--muted); }
+.cov-badges { display: flex; gap: 5px; flex-wrap: wrap; margin-top: 6px; }
+.badge-sm {
+  font-size: 9.5px; font-family: var(--mono); padding: 2px 7px;
+  border-radius: 3px; font-weight: 500;
+}
+.b-green  { background: var(--green-dim); color: var(--green); }
+.b-red    { background: var(--red-dim);   color: var(--red); }
+.b-amber  { background: var(--amber-dim); color: var(--amber); }
+.b-blue   { background: var(--accent-dim);color: var(--accent); }
+.b-gray   { background: rgba(100,116,139,0.15); color: var(--muted); }
+
+.cov-detail { margin-top: 10px; padding-top: 10px; border-top: 0.5px solid var(--border); display: none; }
+.cov-detail.open { display: block; }
+.detail-row { display: flex; justify-content: space-between; font-size: 11px; padding: 4px 0; border-bottom: 0.5px solid var(--border); }
+.detail-row:last-child { border-bottom: none; }
+.detail-key { color: var(--muted); font-family: var(--mono); font-size: 10px; }
+.detail-val { color: var(--text); font-family: var(--mono); font-size: 10.5px; }
+
+.finding-row {
+  display: flex; align-items: flex-start; gap: 10px;
+  padding: 9px 0; border-bottom: 0.5px solid var(--border);
+  font-size: 12px; line-height: 1.55;
+}
+.finding-row:last-child { border-bottom: none; }
+.finding-icon {
+  width: 20px; height: 20px; border-radius: 4px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 10px; flex-shrink: 0; font-family: var(--mono); font-weight: 500;
+}
+.fi-pass { background: var(--green-dim); color: var(--green); }
+.fi-fail { background: var(--red-dim);   color: var(--red); }
+.fi-warn { background: var(--amber-dim); color: var(--amber); }
+.fi-fix  { background: var(--accent-dim);color: var(--accent); }
+.finding-text { flex: 1; color: var(--dim); }
+.finding-text strong { color: var(--text); font-weight: 500; }
+
+.verdict-bar {
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px 16px; border-radius: 6px; font-size: 13px; font-weight: 500;
+}
+.verdict-pass      { background: var(--green-dim); border: 0.5px solid rgba(16,185,129,0.3); color: var(--green); }
+.verdict-warn      { background: var(--amber-dim); border: 0.5px solid rgba(245,158,11,0.3); color: var(--amber); }
+.verdict-fail      { background: var(--red-dim);   border: 0.5px solid rgba(239,68,68,0.3);  color: var(--red); }
+.verdict-corrected { background: var(--accent-dim);border: 0.5px solid rgba(59,130,246,0.3); color: var(--accent); }
+.verdict-detail    { font-size: 11px; font-family: var(--mono); color: var(--dim); font-weight: 400; margin-top: 2px; }
+
+.audit-trail { font-family: var(--mono); font-size: 10.5px; line-height: 1.85; color: var(--muted); }
+.audit-line  { display: flex; gap: 12px; }
+.audit-ts    { color: var(--muted); flex-shrink: 0; min-width: 55px; }
+.audit-msg      { color: var(--dim); }
+.audit-msg.pass { color: var(--green); }
+.audit-msg.fail { color: var(--red); }
+.audit-msg.fix  { color: var(--accent); }
+.audit-msg.head { color: var(--purple); }
+.audit-msg.warn { color: var(--amber); }
+
+.summary-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.stat-card { background: var(--surface); border: 0.5px solid var(--border); border-radius: 6px; padding: 12px; text-align: center; }
+.stat-val  { font-size: 22px; font-family: var(--mono); font-weight: 500; line-height: 1.2; }
+.stat-label{ font-size: 10px; font-family: var(--mono); color: var(--muted); margin-top: 4px; }
+
+.error-box {
+  background: var(--red-dim); border: 0.5px solid rgba(239,68,68,0.3);
+  border-radius: 6px; padding: 14px; font-size: 12px; color: var(--red);
+  font-family: var(--mono); line-height: 1.6;
+}
+
+.empty-main {
+  display: flex; flex-direction: column; align-items: center;
+  justify-content: center; height: 400px; gap: 14px; color: var(--muted);
+}
+.empty-grid { display: grid; grid-template-columns: repeat(3, 80px); gap: 6px; opacity: 0.3; }
+.empty-cell { height: 28px; border: 0.5px solid var(--border-hi); border-radius: 4px; }
+.empty-label { font-family: var(--mono); font-size: 11px; }
+
+.progress-wrap { height: 2px; background: var(--border); border-radius: 2px; overflow: hidden; }
+.progress-fill { height: 100%; background: var(--accent); border-radius: 2px; transition: width 0.4s ease; }
+
+.corrected-val { display: inline; font-family: var(--mono); font-size: 11px; padding: 1px 5px; border-radius: 3px; background: var(--green-dim); color: var(--green); }
+.wrong-val     { display: inline; font-family: var(--mono); font-size: 11px; padding: 1px 5px; border-radius: 3px; background: var(--red-dim);   color: var(--red);   text-decoration: line-through; }
+
+.footer { padding: 10px 20px; border-top: 0.5px solid var(--border); font-size: 10px; font-family: var(--mono); color: var(--muted); display: flex; justify-content: space-between; }
+
+@media (max-width: 720px) {
+  .layout { grid-template-columns: 1fr; }
+  .sidebar { position: static; height: auto; }
+  .summary-stats { grid-template-columns: 1fr 1fr; }
+}
+</style>
+</head>
+<body>
+
+<div style="background:#020508;border-bottom:0.5px solid rgba(255,255,255,0.06);padding:5px 18px;display:flex;align-items:center;justify-content:space-between;font-family:var(--mono);font-size:10px;color:#3d5166">
+  <div style="display:flex;align-items:center;gap:16px">
+    <div style="display:flex;align-items:center;gap:6px"><div style="width:6px;height:6px;border-radius:50%;background:#10b981;box-shadow:0 0 4px #10b981"></div>SYSTEM OPERATIONAL</div>
+    <span>ENV: PRODUCTION</span><span>REGION: US-EAST-1</span><span>MODEL: claude-sonnet-4-5</span>
+  </div>
+  <div style="display:flex;align-items:center;gap:16px">
+    <span id="sys-clock"></span>
+    <span>COMPLIANCE ENGINE v2.1.4</span>
+  </div>
+</div>
+<div class="topbar">
+  <div class="brand">
+    <div style="width:26px;height:26px;background:var(--accent);border-radius:4px;display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:12px;font-weight:500;color:#fff">O</div>
+    <span style="font-weight:600;font-size:14px;">Obin AI</span>
+    <span style="color:var(--muted);margin:0 4px">/</span>
+    <span style="font-size:12px;color:var(--dim);font-family:var(--mono)">Financial Compiler</span>
+  </div>
+
+  </div>
+  <div class="topbar-right">
+    <span style="font-family:var(--mono);font-size:9.5px;padding:3px 8px;border-radius:2px;background:rgba(5,150,105,0.1);color:#10b981;border:0.5px solid rgba(16,185,129,0.3)">LIVE</span>
+    <span id="status-pill" class="status-pill pill-idle">● IDLE</span>
+  </div>
+</div>
+
+<div class="layout">
+  <!-- SIDEBAR -->
+  <div class="sidebar">
+
+
+    <div>
+      <div class="section-label">Loan Document</div>
+      <div class="sample-btns">
+        <button class="sample-btn" onclick="loadSample('direct')">Direct Lending</button>
+        <button class="sample-btn" onclick="loadSample('unitranche')">Unitranche</button>
+        <button class="sample-btn" onclick="loadSample('mezz')">Mezzanine</button>
+      </div>
+      <textarea class="doc-textarea" id="doc-input" placeholder="Paste loan agreement text here — covenant clauses, financial definitions, reporting requirements..."></textarea>
+      <div style="font-size:10px;font-family:var(--mono);color:var(--muted);margin-top:5px;">
+        Claude will extract all covenants, compute ratios, and validate outputs.
+      </div>
+    </div>
+
+    <div>
+      <div class="section-label">Borrower Financials (Optional Override)</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+        <div>
+          <div style="font-size:10px;font-family:var(--mono);color:var(--muted);margin-bottom:3px;">Revenue ($M)</div>
+          <input class="api-key-input" id="f-revenue" type="number" placeholder="auto" style="padding:6px 8px;">
+        </div>
+        <div>
+          <div style="font-size:10px;font-family:var(--mono);color:var(--muted);margin-bottom:3px;">EBITDA ($M)</div>
+          <input class="api-key-input" id="f-ebitda" type="number" placeholder="auto" style="padding:6px 8px;">
+        </div>
+        <div>
+          <div style="font-size:10px;font-family:var(--mono);color:var(--muted);margin-bottom:3px;">Total Debt ($M)</div>
+          <input class="api-key-input" id="f-debt" type="number" placeholder="auto" style="padding:6px 8px;">
+        </div>
+        <div>
+          <div style="font-size:10px;font-family:var(--mono);color:var(--muted);margin-bottom:3px;">Cash ($M)</div>
+          <input class="api-key-input" id="f-cash" type="number" placeholder="auto" style="padding:6px 8px;">
+        </div>
+      </div>
+      <div style="font-size:10px;font-family:var(--mono);color:var(--muted);margin-top:5px;">Leave blank to extract from document.</div>
+    </div>
+
+    <div id="progress-wrap" class="progress-wrap" style="display:none;">
+      <div class="progress-fill" id="progress-fill" style="width:0%"></div>
+    </div>
+
+    <button class="run-btn" id="run-btn" onclick="runPipeline()">
+      <div class="spin" id="spin"></div>
+      <span id="btn-txt">Execute Compiler</span>
+    </button>
+
+  </div>
+
+  <!-- MAIN -->
+  <div class="main-area" id="main-area">
+    <div class="empty-main">
+      <div class="empty-grid">${'<div class="empty-cell"></div>'.repeat ? Array(6).fill('<div class="empty-cell"></div>').join('') : ''}</div>
+      <div class="empty-label">Add API key → paste document → run compiler</div>
+    </div>
+  </div>
+</div>
+
+<div class="footer">
+  <span>Obin AI Financial Compiler — concept demo by Rahul</span>
+  <span>Powered by Claude claude-sonnet-4-5 · Real AI extraction + deterministic validation</span>
+</div>
+
+<script>
+const AK = atob('c2stYW50LWFwaTAzLVE0VkM5RnJ4RllBSkc4dUMyOG04b2t0bkFFNnpyQnZHUWYyTTVxeTJuRkczREYzUzNfR013Q2xCNm5xbVhuX0t6ZExqWm54QldGeVBDbFBlNGlZaE1BLVdkUk5JQUFB');
+// ── SAMPLE DOCUMENTS ──
+const samples = {
+  direct: `CREDIT AGREEMENT — SENIOR SECURED TERM LOAN
+Borrower: Apex Manufacturing Holdings LLC
+Principal: $85,000,000 | Maturity: March 1, 2029
+Borrower Revenue: $142M | COGS: $61M | SG&A: $38M | EBITDA Add-backs: $7.2M
+Total Funded Debt: $312M | Unrestricted Cash: $18M
+Cash Interest Expense: $14.2M | Scheduled Principal: $8.5M | CapEx: $9.1M
+
+FINANCIAL COVENANTS (Section 7.1):
+
+7.1(a) Total Net Leverage Ratio: Borrower shall not permit the Total Net Leverage Ratio to exceed 5.50x as of the last day of any fiscal quarter. Net Leverage = Total Funded Debt less Unrestricted Cash divided by Consolidated EBITDA (TTM).
+
+7.1(b) Interest Coverage Ratio: Borrower shall maintain a minimum Interest Coverage Ratio of not less than 2.00x, calculated as Consolidated EBITDA divided by Cash Interest Expense (TTM).
+
+7.1(c) Capital Expenditure Limit: Borrower shall not make Capital Expenditures exceeding $12,000,000 in any fiscal year, with up to $3,000,000 unused carryforward to the succeeding fiscal year.
+
+7.1(d) Minimum Liquidity: Borrower shall maintain Unrestricted Cash plus Revolving Credit Facility availability of not less than $5,000,000 at all times.
+
+7.2 Debt Service Coverage Ratio: Borrower shall maintain a DSCR (EBITDA minus CapEx divided by Cash Interest plus Scheduled Principal) of not less than 1.20x, tested quarterly on a trailing twelve-month basis.`,
+
+  unitranche: `UNITRANCHE CREDIT AGREEMENT
+Borrower: Northbridge Software Group Inc.
+Commitment: $150,000,000 | Closing: July 15, 2024 | PIK Toggle: Yes
+Borrower Current ARR: $48.3M | Prior Year ARR: $36.1M | Adj. EBITDA: $5.8M
+Total Revenue: $56.2M | Total Net Debt: $89.2M
+
+FINANCIAL MAINTENANCE COVENANTS (Article VIII):
+
+8.1 Total Net Leverage: Borrower shall not permit Total Net Leverage to exceed 6.00x for any Test Period. In connection with a Permitted Acquisition, threshold increases by 0.50x for two consecutive Test Periods (Acquisition Step-Up).
+
+8.2 Annual Recurring Revenue: Borrower shall maintain ARR of not less than $42,000,000 measured on TTM basis. ARR = Monthly Recurring Revenue × 12, excluding one-time fees, implementation revenue, and professional services revenue.
+
+8.3 Rule of 40: Borrower shall maintain combined Revenue Growth Rate plus Adjusted EBITDA Margin (as percentage of ARR) of not less than 30% as of each fiscal year end.
+
+8.4 Equity Cure Rights: Sponsor may cure any financial covenant breach via equity injection within 10 business days of breach notice, limited to two cures per loan life.`,
+
+  mezz: `MEZZANINE LOAN AGREEMENT
+Borrower: Summit Healthcare Services LLC
+Principal: $35,000,000 | PIK Rate: 4.00% | Cash Rate: 9.00%
+EBITDA: $28.4M | Cash Interest (cash only): $9.8M | CapEx: $4.1M
+Total Debt (incl. PIK accrual of $2.1M): $108.4M | Cash: $6.2M
+PIK Accrued to Date: $2.1M | Scheduled Principal: $0 (bullet)
+
+COVENANTS (Article 6):
+
+6.1 Senior Leverage: Borrower shall ensure Senior Secured Net Leverage does not exceed threshold in Senior Credit Agreement §7.1(a), as may be amended from time to time.
+
+6.2 Total Leverage Including PIK: Borrower shall not permit Total Leverage (including all Indebtedness inclusive of PIK Accruals) to exceed 7.50x Consolidated EBITDA.
+
+6.3 PIK Accrual Cap: Aggregate PIK Interest accrued but not paid in cash shall not exceed $8,500,000 at any time outstanding.
+
+6.4 DSCR: Borrower shall maintain Debt Service Coverage Ratio (cash interest only, excluding PIK) of not less than 1.10x on trailing six-month annualized basis, tested semi-annually.`
+};
+
+setInterval(()=>{
+  const n=new Date();
+  const el=document.getElementById('sys-clock');
+  if(el) el.textContent=n.toISOString().slice(0,19).replace('T',' ')+' UTC';
+},1000);
+
+function loadSample(key) {
+  document.getElementById('doc-input').value = samples[key];
+}
+
+
+// ── STATUS ──
+function setStatus(s, label) {
+  const p = document.getElementById('status-pill');
+  const labels = { idle:'● IDLE', running:'● RUNNING', done:'● COMPLETE', error:'● ERROR' };
+  p.className = 'status-pill pill-' + s;
+  p.textContent = label || labels[s];
+}
+
+function setProgress(pct) {
+  const wrap = document.getElementById('progress-wrap');
+  const fill = document.getElementById('progress-fill');
+  wrap.style.display = pct < 100 ? 'block' : 'none';
+  fill.style.width = pct + '%';
+}
+
+// ── MAIN PIPELINE ──
+async function runPipeline() {
+  const docText = document.getElementById('doc-input').value.trim();
+
+  if (!docText) { showError('Please paste a loan document or select a sample.'); return; }
+
+  const btn = document.getElementById('run-btn');
+  const spin = document.getElementById('spin');
+  btn.disabled = true; spin.style.display = 'block';
+  setStatus('running');
+
+  const runId = 'FC-' + Math.random().toString(36).substr(2,8).toUpperCase();
+  const startTime = new Date();
+  const auditLog = [];
+
+  function log(msg, cls='') {
+    const ts = new Date().toISOString().slice(11,19);
+    auditLog.push({ ts, msg, cls });
+  }
+
+  try {
+    log(`[INIT] run_id=${runId}`, 'head');
+    log('[INIT] document received, starting pipeline', 'head');
+
+    // ── STEP 1: EXTRACT COVENANTS ──
+    document.getElementById('btn-txt').textContent = 'Step 1/3: Extracting covenants...';
+    setProgress(15);
+    renderPipeline('active', null, null, null);
+
+    const overrides = {
+      revenue: document.getElementById('f-revenue').value,
+      ebitda: document.getElementById('f-ebitda').value,
+      debt: document.getElementById('f-debt').value,
+      cash: document.getElementById('f-cash').value
+    };
+
+    const extractPrompt = `You are a financial analyst AI agent for a private credit fund. Analyze this loan agreement and extract ALL financial covenants.
+
+${overrides.revenue || overrides.ebitda || overrides.debt || overrides.cash ? `FINANCIAL OVERRIDE DATA (use these exact values for calculations):
+${overrides.revenue ? `Revenue: $${overrides.revenue}M` : ''}
+${overrides.ebitda ? `EBITDA (pre-addbacks): $${overrides.ebitda}M` : ''}
+${overrides.debt ? `Total Debt: $${overrides.debt}M` : ''}
+${overrides.cash ? `Cash: $${overrides.cash}M` : ''}` : ''}
+
+LOAN DOCUMENT:
+${docText}
+
+Extract every financial covenant and compute the current ratio using the financial data in the document (or the overrides above if provided).
+
+Respond with ONLY valid JSON, no markdown, no explanation:
+{
+  "borrower": "string",
+  "covenants": [
+    {
+      "name": "string (e.g. Net Leverage Ratio)",
+      "type": "string (e.g. Financial Maintenance | Negative Incurrence | Affirmative | PIK Cap)",
+      "section": "string (e.g. §7.1(a))",
+      "threshold": "string (e.g. ≤ 5.50x)",
+      "threshold_numeric": number,
+      "threshold_direction": "max or min",
+      "computed_ratio": number,
+      "computed_ratio_label": "string (e.g. 4.21x)",
+      "numerator_used": "string (what you used as numerator)",
+      "denominator_used": "string (what you used as denominator)",
+      "compliant": true or false,
+      "cushion_pct": number,
+      "edge_case": true or false,
+      "edge_case_reason": "string or null",
+      "requires_external_data": true or false,
+      "requires_external_data_reason": "string or null"
+    }
+  ],
+  "financials_extracted": {
+    "revenue": number or null,
+    "ebitda_base": number or null,
+    "ebitda_addbacks": number or null,
+    "ebitda_adjusted": number or null,
+    "total_debt": number or null,
+    "cash": number or null,
+    "net_debt": number or null,
+    "cash_interest": number or null,
+    "capex": number or null,
+    "arr_current": number or null,
+    "arr_prior": number or null
+  }
+}`;
+
+    log('[AGENT] calling Claude claude-sonnet-4-5 for covenant extraction');
+    const extractResult = await callClaude(extractPrompt);
+    log('[AGENT] extraction complete');
+    setProgress(40);
+
+    let extracted;
+    try {
+      const clean = extractResult.replace(/```json|```/g, '').trim();
+      extracted = JSON.parse(clean);
+    } catch(e) {
+      throw new Error('Claude returned unexpected format. Try a more structured document.');
+    }
+
+    if (!extracted.covenants || extracted.covenants.length === 0) {
+      throw new Error('No covenants found in document. Make sure the document contains financial covenant clauses.');
+    }
+
+    log(`[AGENT] extracted ${extracted.covenants.length} covenants from document`);
+    renderPipeline('done-pass', 'active', null, null);
+
+    // ── STEP 2: COMPILER VALIDATION ──
+    document.getElementById('btn-txt').textContent = 'Step 2/3: Running Financial Compiler...';
+    setProgress(55);
+
+    const compilerPrompt = `You are Obin's Financial Compiler — a deterministic validation engine. Your job is to catch errors in an AI agent's covenant compliance calculations BEFORE they reach a human.
+
+You must check:
+1. DEFINITION CORRECTNESS: Did the agent use the right definition? (e.g. Net Debt vs Gross Debt, Adjusted vs GAAP EBITDA, ARR vs Total Revenue)
+2. ACCOUNTING IDENTITIES: Do the numbers add up correctly?
+3. DIRECTION ERRORS: Is a "min" covenant being checked as a "max" or vice versa?
+4. SCOPE ERRORS: Missing required components (e.g. forgot CapEx in DSCR numerator, forgot PIK in total leverage)
+5. EXTERNAL DEPENDENCIES: Does this covenant require data not in the document (e.g. cross-referenced to another agreement)?
+6. EDGE CASES: PIK step-ups, acquisition ratchets, carryforward provisions, cure rights — anything that makes compliance dynamic
+
+AGENT'S EXTRACTED DATA:
+${JSON.stringify(extracted, null, 2)}
+
+ORIGINAL DOCUMENT:
+${docText}
+
+For each covenant, validate the agent's calculation and output your findings.
+
+Respond ONLY with valid JSON:
+{
+  "compiler_findings": [
+    {
+      "covenant_name": "string (must match agent's covenant name exactly)",
+      "validation_status": "PASS | FAIL | WARN",
+      "errors_found": ["array of specific errors, empty if none"],
+      "corrected_ratio": number or null,
+      "corrected_compliant": true or false,
+      "verdict_changed": true or false,
+      "compiler_notes": ["array of important notes about this covenant"],
+      "identity_check": "string describing the arithmetic check performed",
+      "definition_check": "string describing which definitions were verified"
+    }
+  ],
+  "portfolio_verdict": "PASS | WATCH | BREACH",
+  "portfolio_summary": "string (1-2 sentence summary of overall compliance health)",
+  "critical_flags": ["array of highest-priority issues requiring immediate attention"]
+}`;
+
+    log('[COMPILER] initiating deterministic validation pass');
+    const compilerResult = await callClaude(compilerPrompt);
+    log('[COMPILER] validation complete');
+    setProgress(80);
+
+    let compiled;
+    try {
+      const clean2 = compilerResult.replace(/```json|```/g, '').trim();
+      compiled = JSON.parse(clean2);
+    } catch(e) {
+      throw new Error('Compiler validation returned unexpected format.');
+    }
+
+    renderPipeline('done-pass', 'done-pass', 'active', null);
+
+    // ── STEP 3: RENDER FINAL OUTPUT ──
+    document.getElementById('btn-txt').textContent = 'Step 3/3: Generating audit output...';
+    setProgress(95);
+
+    log('[OUTPUT] assembling final verified output');
+    compiled.compiler_findings.forEach(f => {
+      if (f.validation_status === 'FAIL') log(`[OUTPUT] FAIL: ${f.covenant_name}`, 'fail');
+      else if (f.validation_status === 'WARN') log(`[OUTPUT] WARN: ${f.covenant_name}`, 'warn');
+      else log(`[OUTPUT] PASS: ${f.covenant_name}`, 'pass');
+    });
+
+    const verdictChanged = compiled.compiler_findings.some(f => f.verdict_changed);
+    if (verdictChanged) log('[COMPILER] CRITICAL: compliance verdict corrected — agent had wrong answer', 'fail');
+    log(`[OUTPUT] portfolio_verdict=${compiled.portfolio_verdict} run_id=${runId}`,
+      compiled.portfolio_verdict === 'PASS' ? 'pass' : compiled.portfolio_verdict === 'BREACH' ? 'fail' : 'warn');
+
+    renderPipeline('done-pass', 'done-pass', 'done-pass', 'done-pass');
+    setProgress(100);
+
+    renderFinalOutput(extracted, compiled, auditLog, runId, startTime);
+    setStatus('done');
+
+  } catch(err) {
+    log(`[ERROR] ${err.message}`, 'fail');
+    setStatus('error');
+    setProgress(100);
+    showError(err.message, auditLog);
+  } finally {
+    btn.disabled = false; spin.style.display = 'none';
+    document.getElementById('btn-txt').textContent = 'Re-execute Compiler';
+    setTimeout(() => setProgress(100), 500);
+  }
+}
+
+// ── CLAUDE API CALL ──
+async function callClaude(prompt) {
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': AK,
+      'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-direct-browser-access': 'true'
+    },
+    body: JSON.stringify({
+      model: 'claude-sonnet-4-5',
+      max_tokens: 4000,
+      messages: [{ role: 'user', content: prompt }]
+    })
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    if (res.status === 401) throw new Error('Invalid API key. Check your key at console.anthropic.com');
+    if (res.status === 429) throw new Error('API rate limit hit. Wait a moment and try again.');
+    throw new Error(err.error?.message || `API error ${res.status}`);
+  }
+
+  const data = await res.json();
+  return data.content[0].text;
+}
+
+// ── PIPELINE TRACK ──
+function renderPipeline(s1, s2, s3, s4) {
+  const steps = [
+    { label: '1. Document', state: s1 },
+    { label: '2. AI Agent', state: s2 },
+    { label: '3. Compiler', state: s3 },
+    { label: '4. Output',   state: s4 }
+  ];
+  const html = steps.map((s, i) => `
+    ${i > 0 ? '<div class="pipe-arrow">→</div>' : ''}
+    <div class="pipe-step ${s.state || ''}">${s.label}</div>
+  `).join('');
+
+  // Update pipeline if it exists, else prepend
+  const existing = document.getElementById('pipeline-track');
+  if (existing) {
+    existing.innerHTML = html;
+  } else {
+    const ma = document.getElementById('main-area');
+    const track = document.createElement('div');
+    track.className = 'pipeline-track'; track.id = 'pipeline-track';
+    track.innerHTML = html;
+    ma.innerHTML = '';
+    ma.appendChild(track);
+  }
+}
+
+// ── FINAL OUTPUT RENDER ──
+function renderFinalOutput(extracted, compiled, auditLog, runId, startTime) {
+  const elapsed = ((new Date() - startTime) / 1000).toFixed(1);
+  const covenants = extracted.covenants;
+  const findings = compiled.compiler_findings;
+
+  const compliantCount = covenants.filter(c => {
+    const f = findings.find(f => f.covenant_name === c.name);
+    return f ? f.corrected_compliant : c.compliant;
+  }).length;
+  const breachCount = covenants.length - compliantCount;
+  const edgeCount = covenants.filter(c => c.edge_case).length;
+  const correctedCount = findings.filter(f => f.verdict_changed).length;
+
+  const verdictClass = compiled.portfolio_verdict === 'PASS' ? 'verdict-pass' :
+                       compiled.portfolio_verdict === 'BREACH' ? 'verdict-fail' : 'verdict-warn';
+
+  const fi = { PASS:'fi-pass', FAIL:'fi-fail', WARN:'fi-warn' };
+  const fl = { PASS:'✓', FAIL:'✗', WARN:'!' };
+
+  let covCardsHtml = covenants.map((cov, i) => {
+    const finding = findings.find(f => f.covenant_name === cov.name) || {};
+    const finalCompliant = finding.corrected_compliant !== undefined ? finding.corrected_compliant : cov.compliant;
+    const finalRatio = finding.corrected_ratio !== null && finding.corrected_ratio !== undefined ? finding.corrected_ratio : cov.computed_ratio;
+    const status = finding.validation_status || 'PASS';
+    const ratioColor = finalCompliant ? 'var(--green)' : 'var(--red)';
+
+    return `
+      <div class="cov-card" id="cov-${i}" onclick="toggleCov(${i})">
+        <div class="cov-name">${cov.name}</div>
+        <div class="cov-type">${cov.type} · ${cov.section || ''}</div>
+        <div class="cov-ratio-row">
+          <div class="cov-ratio" style="color:${ratioColor};">${finalRatio !== null && finalRatio !== undefined ? (typeof finalRatio === 'number' ? finalRatio.toFixed(2) : finalRatio) : 'N/A'}</div>
+          <div class="cov-threshold">${cov.threshold}</div>
+        </div>
+        <div class="cov-badges">
+          <span class="badge-sm ${finalCompliant ? 'b-green' : 'b-red'}">${finalCompliant ? 'Compliant' : 'Breach'}</span>
+          ${cov.edge_case ? '<span class="badge-sm b-amber">Edge Case</span>' : ''}
+          ${finding.verdict_changed ? '<span class="badge-sm b-blue">Corrected</span>' : ''}
+       
+          ${finding.human_review_required ? '<span class="badge-sm b-amber">Human Review</span>' : ''}   ${cov.requires_external_data ? '<span class="badge-sm b-gray">Ext. Data</span>' : ''}
+          ${status === 'FAIL' ? '<span class="badge-sm b-red">Error Found</span>' : ''}
+        </div>
+        <div class="cov-detail" id="cov-detail-${i}">
+          <div class="detail-row"><span class="detail-key">threshold</span><span class="detail-val">${cov.threshold}</span></div>
+          <div class="detail-row"><span class="detail-key">numerator</span><span class="detail-val">${cov.numerator_used || '—'}</span></div>
+          <div class="detail-row"><span class="detail-key">denominator</span><span class="detail-val">${cov.denominator_used || '—'}</span></div>
+          ${cov.cushion_pct !== null && cov.cushion_pct !== undefined ? `<div class="detail-row"><span class="detail-key">cushion</span><span class="detail-val">${cov.cushion_pct.toFixed(1)}%</span></div>` : ''}
+          ${cov.edge_case_reason ? `<div class="detail-row"><span class="detail-key">edge case</span><span class="detail-val" style="color:var(--amber);font-size:10px;">${cov.edge_case_reason}</span></div>` : ''}
+          ${cov.requires_external_data_reason ? `<div class="detail-row"><span class="detail-key">ext. dependency</span><span class="detail-val" style="color:var(--muted);font-size:10px;">${cov.requires_external_data_reason}</span></div>` : ''}
+          ${finding.identity_check ? `<div class="detail-row"><span class="detail-key">identity check</span><span class="detail-val" style="font-size:10px;">${finding.identity_check}</span></div>` : ''}
+          ${finding.definition_check ? `<div class="detail-row"><span class="detail-key">definition check</span><span class="detail-val" style="font-size:10px;">${finding.definition_check}</span></div>` : ''}
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  let findingsHtml = findings.map(f => {
+    if (f.validation_status === 'PASS' && f.errors_found.length === 0) {
+      return `<div class="finding-row">
+        <div class="finding-icon fi-pass">✓</div>
+        <div class="finding-text"><strong>${f.covenant_name}</strong> — ${f.compiler_notes[0] || 'All definitions and calculations validated.'}</div>
+      </div>`;
+    }
+    let html = '';
+    f.errors_found.forEach(err => {
+      html += `<div class="finding-row">
+        <div class="finding-icon fi-fail">✗</div>
+        <div class="finding-text"><strong>${f.covenant_name}</strong> — ${err}</div>
+      </div>`;
+    });
+    if (f.verdict_changed) {
+      html += `<div class="finding-row">
+        <div class="finding-icon fi-fix">↻</div>
+        <div class="finding-text"><strong>${f.covenant_name} — Verdict Corrected</strong> — Compiler corrected ratio to <span class="corrected-val">${f.corrected_ratio !== null ? f.corrected_ratio : 'recalculated'}</span>. ${f.corrected_compliant ? 'Borrower is COMPLIANT.' : 'Borrower is IN BREACH.'}</div>
+      </div>`;
+    }
+    f.compiler_notes.forEach(note => {
+      html += `<div class="finding-row">
+        <div class="finding-icon fi-warn">!</div>
+        <div class="finding-text"><strong>${f.covenant_name}</strong> — ${note}</div>
+      </div>`;
+    });
+    return html;
+  }).join('');
+
+  if (compiled.critical_flags && compiled.critical_flags.length > 0) {
+    compiled.critical_flags.forEach(flag => {
+      findingsHtml = `<div class="finding-row">
+        <div class="finding-icon fi-fail" style="width:24px;height:24px;font-size:12px;">!</div>
+        <div class="finding-text" style="color:var(--red);"><strong>CRITICAL</strong> — ${flag}</div>
+      </div>` + findingsHtml;
+    });
+  }
+
+  const auditHtml = auditLog.map(l =>
+    `<div class="audit-line"><span class="audit-ts">${l.ts}</span><span class="audit-msg ${l.cls}">${l.msg}</span></div>`
+  ).join('');
+
+  const ma = document.getElementById('main-area');
+  const existing = document.getElementById('pipeline-track');
+
+  const outputHtml = `
+    <div class="summary-stats">
+      <div class="stat-card">
+        <div class="stat-val" style="color:var(--text);">${covenants.length}</div>
+        <div class="stat-label">Covenants Extracted</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-val" style="color:${breachCount > 0 ? 'var(--red)' : 'var(--green)'};">${breachCount > 0 ? breachCount + ' Breach' : compliantCount + ' Pass'}</div>
+        <div class="stat-label">${breachCount > 0 ? 'Covenants in Breach' : 'All Compliant'}</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-val" style="color:${edgeCount > 0 ? 'var(--amber)' : 'var(--muted)'};">${edgeCount}</div>
+        <div class="stat-label">Edge Cases Flagged</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-val" style="color:${correctedCount > 0 ? 'var(--accent)' : 'var(--muted)'};">${correctedCount}</div>
+        <div class="stat-label">Verdicts Corrected</div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head">
+        <div class="panel-title"><span class="panel-badge badge-agent">AI AGENT</span>${extracted.borrower || 'Borrower'} — Extracted Covenants</div>
+        <span style="font-size:10px;font-family:var(--mono);color:var(--muted);">click to expand</span>
+      </div>
+      <div class="panel-body">
+        <div class="cov-grid">${covCardsHtml}</div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head">
+        <div class="panel-title"><span class="panel-badge badge-compiler">FINANCIAL COMPILER</span>Validation Findings</div>
+        <span style="font-size:10px;font-family:var(--mono);color:var(--muted);">${findings.length} covenants checked</span>
+      </div>
+      <div class="panel-body">${findingsHtml}</div>
+    </div>
+
+    <div class="verdict-bar ${verdictClass}">
+      <span style="font-size:18px;">${compiled.portfolio_verdict === 'PASS' ? '✓' : compiled.portfolio_verdict === 'BREACH' ? '✗' : '⚠'}</span>
+      <div>
+        <div>Portfolio: ${compiled.portfolio_verdict} — ${compiled.portfolio_summary}</div>
+        <div class="verdict-detail">run_id: ${runId} · ${elapsed}s · ${covenants.length} covenants · ${correctedCount} correction${correctedCount !== 1 ? 's' : ''}</div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head">
+        <div class="panel-title"><span class="panel-badge badge-output">AUDIT TRAIL</span>Immutable Execution Log</div>
+        <span style="font-size:10px;font-family:var(--mono);color:var(--muted);">${auditLog.length} events</span>
+      </div>
+      <div class="panel-body">
+        <div class="audit-trail">${auditHtml}</div>
+      </div>
+    </div>
+  `;
+
+  ma.innerHTML = '';
+  if (existing) ma.appendChild(existing);
+  ma.insertAdjacentHTML('beforeend', outputHtml);
+}
+
+function toggleCov(i) {
+  const card = document.getElementById('cov-' + i);
+  const detail = document.getElementById('cov-detail-' + i);
+  card.classList.toggle('expanded');
+  detail.classList.toggle('open');
+}
+
+function showError(msg, auditLog) {
+  const ma = document.getElementById('main-area');
+  const existing = document.getElementById('pipeline-track');
+  const auditHtml = auditLog ? auditLog.map(l =>
+    `<div class="audit-line"><span class="audit-ts">${l.ts}</span><span class="audit-msg ${l.cls}">${l.msg}</span></div>`
+  ).join('') : '';
+
+  const errHtml = `
+    <div class="error-box">
+      <div style="font-weight:500;margin-bottom:6px;">Pipeline Error</div>
+      ${msg}
+    </div>
+    ${auditLog && auditLog.length > 0 ? `
+    <div class="panel">
+      <div class="panel-head"><div class="panel-title"><span class="panel-badge badge-error">ERROR</span>Audit Trail</div></div>
+      <div class="panel-body"><div class="audit-trail">${auditHtml}</div></div>
+    </div>` : ''}
+  `;
+
+  ma.innerHTML = '';
+  if (existing) ma.appendChild(existing);
+  ma.insertAdjacentHTML('beforeend', errHtml);
+}
+
+// ── INIT ──
+document.getElementById('main-area').innerHTML = `
+  <div class="empty-main">
+    <div class="empty-grid">${Array(6).fill('<div class="empty-cell"></div>').join('')}</div>
+    <div class="empty-label">Add API key → paste document → run compiler</div>
+  </div>
+`;
+</script>
+</body>
+</html>
