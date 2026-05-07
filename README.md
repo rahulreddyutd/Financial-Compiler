@@ -36,14 +36,6 @@ The two-pass structure is the point. The agent might get something wrong. The co
 
 ---
 
-## Running it
-
-Just open the HTML file in Chrome. No server, no install, no configuration. The API key is already embedded.
-
-If you want to test with your own loan document, the override financials fields in the sidebar let you inject specific numbers. Leave them blank and the agent will extract everything from the document text.
-
----
-
 ## What I was thinking when I built this
 
 I spent four years building AI systems inside regulated financial institutions, Capital One and Optum. The failure mode I kept running into wasn't model quality. It was that nobody had built a principled validation layer between the model output and the business decision.
